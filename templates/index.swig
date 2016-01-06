@@ -34,6 +34,12 @@
       {% endfor %}
       </ul>
 
+      <hr />
+
+      <ul class="remotes-nav">
+        <li><button class="btn btn-wide btn-large btn-inverse command-once" href="/zwave/2/on">Light On</button></li>
+        <li><button class="btn btn-wide btn-large btn-inverse command-once" href="/zwave/2/off">Light Off</button></li>
+      </ul>
 
       <hr />
 
@@ -64,7 +70,7 @@
 
       <hr />
 
-      <ul class="remotes">
+      <ul class="devices">
       {% for device in devices %}
         {% set deviceName = device.name %}
         <li class="remote" id="{{ deviceName|url_encode }}">

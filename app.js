@@ -9,9 +9,11 @@ var consolidate = require('consolidate');
 var swig = require('swig');
 var labels = require('./lib/labels');
 var https = require('https');
+var request = require('request');
 var fs = require('fs');
 var macros = require('./lib/macros');
 var request = require('request');
+var OpenZWave = require('openzwave');
 
 // Precompile templates
 var JST = {
@@ -48,7 +50,9 @@ app.use(express.static(__dirname + '/static'));
 function _init() {
   var home = process.env.HOME;
 
-  lircNode.init();
+  lircNode.init().then(function() {
+    console.log("LIRC connection initialized");
+  });
 
   // Config file is optional
   try {
@@ -233,12 +237,10 @@ app.post('/devices/:device/:command', function(req, res) {
         form: command.body
     };
 
-    console.log(commandReq);
-
     request(commandReq);
 
     res.setHeader('Cache-Control', 'no-cache');
-    res.send(200);
+    res.sendStatus(200);
 });
 
 // Send :remote/:command one time
@@ -275,24 +277,52 @@ app.post('/macros/:macro', function (req, res) {
   }
 });
 
+// ZWAVE
+var zwaveNodes = [];
+var zwave = new OpenZWave('/dev/ttyACM0', {
+    saveconfig: true,
+});
+zwave.connect();
+
+app.post('/zwave/:id/on', function(req, res) {
+	var id = req.params.id;
+	zwave.switchOn(id);
+	res.json({ "success": true });
+});
+
+app.post('/zwave/:id/off', function(req, res) {
+	var id = req.params.id;
+	zwave.switchOff(id);
+	res.json({ "success": true });
+});
+
+zwave.on('scan complete', function() {
+  console.log("Zwave scan complete...");
+});
+
 // Listen (http)
 if (config.server && config.server.port) {
   port = config.server.port;
 }
-// only start server, when called as application
+
 if (!module.parent) {
   app.listen(port);
   console.log('Open Source Universal Remote UI + API has started on port ' + port + ' (http).');
+
+  // Listen (https)
+  if (config.server && config.server.ssl && config.server.ssl_cert && config.server.ssl_key && config.server.ssl_port) {
+    sslOptions = {
+      key: fs.readFileSync(config.server.ssl_key),
+      cert: fs.readFileSync(config.server.ssl_cert),
+    };
+
+    https.createServer(sslOptions, app).listen(config.server.ssl_port);
+
+    console.log('Open Source Universal Remote UI + API has started on port ' + config.server.ssl_port + ' (https).');
+  }
 }
 
-// Listen (https)
-if (config.server && config.server.ssl && config.server.ssl_cert && config.server.ssl_key && config.server.ssl_port) {
-  sslOptions = {
-    key: fs.readFileSync(config.server.ssl_key),
-    cert: fs.readFileSync(config.server.ssl_cert),
-  };
-
-  https.createServer(sslOptions, app).listen(config.server.ssl_port);
-
-  console.log('Open Source Universal Remote UI + API has started on port ' + config.server.ssl_port + ' (https).');
-}
+process.on('SIGINT', function() {
+    zwave.disconnect();
+    process.exit();
+});
