@@ -13,7 +13,7 @@ var request = require('request');
 var fs = require('fs');
 var macros = require('./lib/macros');
 var request = require('request');
-var OpenZWave = require('openzwave');
+var OpenZWave = require('openzwave-shared');
 
 // Precompile templates
 var JST = {
@@ -52,6 +52,7 @@ function _init() {
 
   lircNode.init().then(function() {
     console.log("LIRC connection initialized");
+    console.log(lircNode.remotes);
   });
 
   // Config file is optional
@@ -279,20 +280,18 @@ app.post('/macros/:macro', function (req, res) {
 
 // ZWAVE
 var zwaveNodes = [];
-var zwave = new OpenZWave('/dev/ttyACM0', {
-    saveconfig: true,
-});
-zwave.connect();
+var zwave = new OpenZWave({ saveconfig: true });
+zwave.connect('/dev/ttyACM0');
 
 app.post('/zwave/:id/on', function(req, res) {
 	var id = req.params.id;
-	zwave.switchOn(id);
+  zwave.setValue(id, 37, 1, 0, true);
 	res.json({ "success": true });
 });
 
 app.post('/zwave/:id/off', function(req, res) {
 	var id = req.params.id;
-	zwave.switchOff(id);
+  zwave.setValue(id, 37, 1, 0, false);
 	res.json({ "success": true });
 });
 
@@ -323,6 +322,6 @@ if (!module.parent) {
 }
 
 process.on('SIGINT', function() {
-    zwave.disconnect();
+    zwave.disconnect('/dev/ttyACM0');
     process.exit();
 });
