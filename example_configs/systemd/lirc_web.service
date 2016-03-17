@@ -1,0 +1,14 @@
+Description=lirc_web
+
+[Service]
+Type=forking
+GuessMainPID=yes
+ExecStart=/bin/sh -ec "exec /usr/bin/node /home/pi/lirc_web/app.js 2>&1 &"
+ExecStop=/usr/bin/kill -SIGINT $MAINPID
+ExecStopPost=
+User=pi
+Group=daemon
+WorkingDirectory=/home/pi
+
+[Install]
+WantedBy=multi-user.target
